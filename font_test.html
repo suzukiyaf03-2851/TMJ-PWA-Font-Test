@@ -1,0 +1,123 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第19回 フォント選択試験</title>
+<style>
+  body {
+    font-family: sans-serif;
+    padding: 20px;
+    max-width: 750px;
+    margin: auto;
+  }
+  button, select {
+    font-size: 18px;
+    padding: 10px;
+    margin: 8px 0;
+    max-width: 100%;
+  }
+  select { width: 100%; }
+  .sample {
+    margin-top: 20px;
+    padding: 25px;
+    border: 1px solid #aaa;
+    text-align: center;
+    font-size: 38px;
+    font-weight: 900;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+  }
+</style>
+</head>
+<body>
+
+<h2>第19回 フォント選択試験</h2>
+
+<p>Windowsにインストールされているフォントを取得します。</p>
+
+<button id="load">フォント一覧を取得</button>
+
+<p id="status">未取得</p>
+
+<select id="fontSelect">
+  <option value="">標準フォント</option>
+</select>
+
+<label for="weight">文字の太さ</label>
+<select id="weight">
+  <option value="400">標準（400）</option>
+  <option value="700">太字（700）</option>
+  <option value="800">特太字（800）</option>
+  <option value="900" selected>極太字（900）</option>
+</select>
+
+<div id="sample" class="sample">
+  奉納<br>
+  一金壱萬圓也<br>
+  山田太郎
+</div>
+
+<script>
+"use strict";
+
+const fontSelect = document.getElementById("fontSelect");
+const weight = document.getElementById("weight");
+const sample = document.getElementById("sample");
+const status = document.getElementById("status");
+
+function updateSample() {
+  const font = fontSelect.value;
+
+  // フォント名をCSSに安全に指定する
+  const quoted = JSON.stringify(font);
+
+  sample.style.fontFamily = font
+    ? quoted + ", serif"
+    : "serif";
+
+  sample.style.fontWeight = weight.value;
+}
+
+document.getElementById("load").addEventListener(
+  "click",
+  async () => {
+    if (typeof window.queryLocalFonts !== "function") {
+      status.textContent =
+        "このブラウザーはフォント一覧取得に対応していません。";
+      return;
+    }
+
+    try {
+      const fonts = await window.queryLocalFonts();
+
+      const families = [...new Set(
+        fonts.map(f => f.family).filter(Boolean)
+      )].sort((a, b) => a.localeCompare(b, "ja"));
+
+      fontSelect.replaceChildren(
+        new Option("標準フォント", "")
+      );
+
+      for (const family of families) {
+        fontSelect.add(new Option(family, family));
+      }
+
+      status.textContent =
+        families.length + "種類のフォントを取得しました。";
+
+    } catch (error) {
+      status.textContent =
+        "取得できませんでした：" + error.name;
+    }
+  }
+);
+
+fontSelect.addEventListener("change", updateSample);
+weight.addEventListener("change", updateSample);
+updateSample();
+</script>
+
+</body>
+</html>
