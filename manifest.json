@@ -1,0 +1,25 @@
+
+{
+  "name": "玉川神社 下げ札管理",
+  "short_name": "玉川下げ札",
+  "description": "玉川神社 下げ札PWA試験版",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#216148",
+  "lang": "ja",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

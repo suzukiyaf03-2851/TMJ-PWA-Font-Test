@@ -1,0 +1,1082 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1">
+
+<title>玉川神社 下げ札管理</title>
+
+
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<meta name="theme-color" content="#c8e6c9">
+
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 16px;
+    background: #f5f5f5;
+    font-family: sans-serif;
+}
+
+.container {
+    max-width: 620px;
+    margin: auto;
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+}
+
+h1 {
+    font-size: 26px;
+    text-align: center;
+}
+
+.version {
+    text-align: center;
+    color: #666;
+}
+
+label {
+    display: block;
+    margin-top: 15px;
+    font-size: 17px;
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    font-size: 19px;
+}
+
+.preview {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f0f5ef;
+    text-align: center;
+}
+
+#kanjiResult {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+#nameResult {
+    margin-top: 10px;
+    font-size: 20px;
+}
+
+.layout-settings {
+    margin-top: 25px;
+    padding: 15px;
+    background: #eef3f8;
+    border-radius: 8px;
+}
+
+.layout-settings h2 {
+    font-size: 21px;
+}
+
+.layout-settings h3 {
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+
+.setting-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.setting-row label {
+    font-size: 15px;
+    margin-top: 5px;
+}
+
+.setting-row input {
+    width: 100%;
+    min-width: 0;
+    font-size: 17px;
+    padding: 7px;
+}
+
+.button-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 20px;
+}
+
+button {
+    padding: 13px;
+    font-size: 17px;
+    border: 1px solid #999;
+    border-radius: 6px;
+    cursor: pointer;
+    background: #dce8f5;
+}
+
+button.primary {
+    background: #c8e6c9;
+}
+
+.print-button {
+    width: 100%;
+    margin-top: 25px;
+    font-size: 20px;
+}
+
+.status {
+    margin-top: 15px;
+    padding: 10px;
+    background: #fff3cd;
+    border-radius: 5px;
+    font-size: 15px;
+}
+
+.status.error {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.preview-title {
+    margin: 25px 0 12px;
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.paper-area {
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.paper-frame {
+    position: relative;
+    width: 100%;
+    max-width: 385px;
+    aspect-ratio: 257 / 364;
+}
+
+.b4-paper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 257mm;
+    height: 364mm;
+    transform-origin: top left;
+    background: #fffdf8;
+    border: 1px solid #999;
+    box-shadow: 0 3px 8px #0002;
+    overflow: hidden;
+}
+
+.safe-area {
+    position: absolute;
+    left: 15mm;
+    top: 15mm;
+    width: 227mm;
+    height: 334mm;
+    border: 1px dashed #c3822d;
+    pointer-events: none;
+}
+
+.hounou,
+.vertical-amount,
+.vertical-name {
+    position: absolute;
+    writing-mode: vertical-rl;
+    white-space: nowrap;
+    font-family: serif;
+}
+
+.hounou {
+    top: 20mm;
+    right: 20mm;
+    font-size: 22.7pt;
+}
+
+.vertical-amount {
+    top: 55mm;
+    right: 55mm;
+    font-size: 25.5pt;
+    letter-spacing: 1mm;
+}
+
+.vertical-name {
+    top: 150mm;
+    right: 115mm;
+    font-size: 31.2pt;
+    letter-spacing: 1mm;
+}
+
+/* B4印刷設定 */
+@page {
+    size: 257mm 364mm;
+    margin: 0;
+}
+
+@media print {
+    html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+    }
+
+    .container {
+        width: 257mm !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .container > :not(.paper-area) {
+        display: none !important;
+    }
+
+    .paper-area {
+        display: block !important;
+        width: 257mm !important;
+        height: 363mm !important;
+        overflow: hidden !important;
+    }
+
+    .paper-frame {
+        width: 257mm !important;
+        height: 363mm !important;
+        max-width: none !important;
+        aspect-ratio: auto !important;
+    }
+
+    .b4-paper {
+        width: 257mm !important;
+        height: 363mm !important;
+        transform: none !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: white !important;
+    }
+
+    .safe-area {
+        display: none !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .setting-row {
+        gap: 5px;
+    }
+
+    .setting-row input {
+        padding: 5px;
+        font-size: 15px;
+    }
+
+    .button-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.font-settings {
+    padding: 15px;
+    margin-bottom: 20px;
+    background: #f3f7ed;
+    border: 1px solid #cbdac0;
+    border-radius: 8px;
+}
+
+.font-settings h2 {
+    font-size: 21px;
+}
+
+.font-settings select {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    font-size: 17px;
+}
+
+.font-settings button {
+    width: 100%;
+}
+
+#fontStatus {
+    font-size: 15px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>玉川神社 下げ札管理</h1>
+
+    <p class="version">
+        PWA試験版 Ver.0.1
+    </p>
+
+    <label for="name">氏名</label>
+    <input type="text" id="name"
+           placeholder="例：山田太郎">
+
+    <label for="amount">奉納金額（円）</label>
+    <input type="number" id="amount"
+           min="1" step="1"
+           placeholder="例：10000">
+
+    <div class="preview">
+        <div id="kanjiResult"></div>
+        <div id="nameResult"></div>
+    </div>
+
+    <div class="layout-settings">
+
+    <div class="font-settings">
+    <h2>下げ札フォント設定</h2>
+
+    <button type="button" id="getFontsButton">
+        端末内フォント一覧を取得
+    </button>
+
+    <p id="fontStatus">
+        使用できるフォントを選択してください。
+    </p>
+
+    <label for="commonFont">使用フォント（共通）</label>
+    <label for="manualFont">フォント名を手動入力</label>
+<input
+    type="text"
+    id="manualFont"
+    placeholder="例：HGP行書体"
+    autocomplete="off"
+>
+
+<button type="button" id="applyManualFont">
+    入力したフォントを使用
+</button>
+    <select id="commonFont">
+        <option value="serif">標準明朝系</option>
+    </select>
+
+    <label for="commonWeight">文字の太さ（共通）</label>
+    <select id="commonWeight">
+        <option value="400">標準（400）</option>
+        <option value="700" selected>太字（700）</option>
+        <option value="800">特太字（800）</option>
+        <option value="900">極太字（900）</option>
+    </select>
+</div>
+        <h2>下げ札レイアウト調整</h2>
+
+        <p>
+            位置はmm、文字サイズはptです。
+        </p>
+
+        <h3>奉納</h3>
+        <div class="setting-row">
+            <label>上 mm
+                <input type="number"
+                       id="hounouTop" value="20"
+                       step="0.5">
+            </label>
+            <label>右 mm
+                <input type="number"
+                       id="hounouRight" value="20"
+                       step="0.5">
+            </label>
+            <label>文字 pt
+                <input type="number"
+                       id="hounouSize" value="22.7"
+                       step="0.5">
+            </label>
+        </div>
+
+        <h3>金額</h3>
+        <div class="setting-row">
+            <label>上 mm
+                <input type="number"
+                       id="amountTop" value="55"
+                       step="0.5">
+            </label>
+            <label>右 mm
+                <input type="number"
+                       id="amountRight" value="55"
+                       step="0.5">
+            </label>
+            <label>文字 pt
+                <input type="number"
+                       id="amountSize" value="25.5"
+                       step="0.5">
+            </label>
+        </div>
+
+        <h3>氏名</h3>
+        <div class="setting-row">
+            <label>上 mm
+                <input type="number"
+                       id="nameTop" value="150"
+                       step="0.5">
+            </label>
+            <label>右 mm
+                <input type="number"
+                       id="nameRight" value="115"
+                       step="0.5">
+            </label>
+            <label>文字 pt
+                <input type="number"
+                       id="nameSize" value="31.2"
+                       step="0.5">
+            </label>
+        </div>
+
+        <div class="button-row">
+            <button type="button"
+                    id="applyButton"
+                    class="primary">
+                設定を反映
+            </button>
+
+            <button type="button"
+                    id="saveButton">
+                設定を保存
+            </button>
+
+            <button type="button"
+                    id="loadButton">
+                保存設定を読込
+            </button>
+
+            <button type="button"
+                    id="resetButton">
+                初期値に戻す
+            </button>
+        </div>
+
+        <!-- 第8回：JSONファイル操作 -->
+        <div class="button-row">
+
+            <button type="button" id="exportButton">
+                JSONファイルに書き出し
+            </button>
+
+            <button type="button" id="importButton">
+                JSONファイルを読み込む
+            </button>
+
+        </div>
+
+        <!-- JSONファイル選択用 -->
+        <input
+            type="file"
+            id="jsonFileInput"
+            accept=".json,application/json"
+            style="display:none"
+        >
+
+        <div id="status" class="status">
+            設定を変更できます。
+        </div>
+
+ 
+    </div>
+
+    <div class="preview-title">
+        B4縦 下げ札プレビュー
+    </div>
+
+    <div class="paper-area">
+        <div class="paper-frame">
+            <div class="b4-paper" id="b4Paper">
+
+                <div class="safe-area"
+                     aria-hidden="true"></div>
+
+                <div class="hounou">奉納</div>
+
+                <div class="vertical-amount"
+                     id="paperAmount"></div>
+
+                <div class="vertical-name"
+                     id="paperName"></div>
+
+            </div>
+        </div>
+    </div>
+
+    <button type="button"
+            class="primary print-button"
+            onclick="window.print()">
+        PDF保存・印刷
+    </button>
+
+</div>
+
+<script src="app.js"></script>
+
+<script>
+"use strict";
+
+// 初期設定
+const DEFAULT_LAYOUT = {
+    hounou: {top: 20, right: 20, size: 22.7},
+    amount: {top: 55, right: 55, size: 25.5},
+    name: {top: 150, right: 115, size: 31.2}
+};
+
+const STORAGE_KEY = "tmj_pwa_layout_v1";
+
+const TARGETS = [
+    {key: "hounou", selector: ".hounou"},
+    {key: "amount", selector: ".vertical-amount"},
+    {key: "name", selector: ".vertical-name"}
+];
+
+const statusElement =
+    document.getElementById("status");
+
+// 用紙を画面幅へ縮小表示
+function scalePaper() {
+    const frame =
+        document.querySelector(".paper-frame");
+
+    const paper =
+        document.getElementById("b4Paper");
+
+    if (!frame || !paper) return;
+
+    const scale =
+        frame.clientWidth / paper.offsetWidth;
+
+    paper.style.transform =
+        "scale(" + scale + ")";
+}
+
+// 入力欄から設定値を取得
+function readLayout() {
+    const result = {};
+
+    for (const target of TARGETS) {
+        const key = target.key;
+
+        const topText =
+            document.getElementById(key + "Top").value;
+
+        const rightText =
+            document.getElementById(key + "Right").value;
+
+        const sizeText =
+            document.getElementById(key + "Size").value;
+
+        if (!topText || !rightText || !sizeText) {
+            throw new Error(
+                key + " の入力欄に空白があります。"
+            );
+        }
+
+        const top = Number(topText);
+        const right = Number(rightText);
+        const size = Number(sizeText);
+
+        if (
+            !Number.isFinite(top) ||
+            !Number.isFinite(right) ||
+            !Number.isFinite(size) ||
+            top < 0 || top > 364 ||
+            right < 0 || right > 257 ||
+            size < 1 || size > 180
+        ) {
+            throw new Error(
+                key + " の設定値が範囲外です。"
+            );
+        }
+
+        result[key] = {top, right, size};
+    }
+
+    return result;
+}
+
+// 設定値を入力欄へ書き込む
+function writeLayout(layout) {
+    for (const target of TARGETS) {
+        const key = target.key;
+
+        document.getElementById(key + "Top").value =
+            layout[key].top;
+
+        document.getElementById(key + "Right").value =
+            layout[key].right;
+
+        document.getElementById(key + "Size").value =
+            layout[key].size;
+    }
+}
+
+// 実際の下げ札へ適用
+function applyLayout(layout) {
+    for (const target of TARGETS) {
+        const element =
+            document.querySelector(target.selector);
+
+        const values = layout[target.key];
+
+        element.style.top =
+            values.top + "mm";
+
+        element.style.right =
+            values.right + "mm";
+
+        element.style.fontSize =
+            values.size + "pt";
+    }
+}
+
+// 状態表示
+function setStatus(message, error = false) {
+    statusElement.textContent = message;
+    statusElement.classList.toggle(
+        "error", error
+    );
+}
+
+// 画面の設定を反映
+function applyFromInputs() {
+    try {
+        const layout = readLayout();
+        applyLayout(layout);
+        setStatus("設定を反映しました。");
+    } catch (error) {
+        setStatus(error.message, true);
+    }
+}
+
+// 設定を保存
+function saveLayout() {
+    try {
+        const layout = readLayout();
+
+        applyLayout(layout);
+
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(layout)
+        );
+
+        const fontSettings = readFontSettings();
+
+        localStorage.setItem(
+            "tmj_pwa_font_v1",
+            JSON.stringify(fontSettings)
+        ); 
+
+        setStatus("設定を保存しました。");
+    } catch (error) {
+        setStatus(
+            "保存できませんでした：" + error.message,
+            true
+        );
+    }
+}
+
+// 設定を読込
+function loadLayout() {
+    try {
+        const text =
+            localStorage.getItem(STORAGE_KEY);
+
+        if (text === null) {
+            setStatus(
+                "保存された設定がありません。",
+                true
+            );
+            return;
+        }
+
+        const layout = JSON.parse(text);
+
+        writeLayout(layout);
+        applyFromInputs();
+    const savedFont = localStorage.getItem("tmj_pwa_font_v1");
+
+    if (savedFont !== null) {
+        const fontSettings = JSON.parse(savedFont);
+
+        const fontSelect = document.getElementById("commonFont");
+        const weightSelect = document.getElementById("commonWeight");
+
+        const fontName = fontSettings.font;
+        const fontWeight = String(fontSettings.weight);
+
+        if (fontName && !Array.from(fontSelect.options)
+            .some(option => option.value === fontName)) {
+            fontSelect.add(new Option(fontName, fontName));
+        }
+
+        fontSelect.value = fontName || "serif";
+
+        if (["400", "700", "800", "900"].includes(fontWeight)) {
+            weightSelect.value = fontWeight;
+        } else {
+            weightSelect.value = "700";
+        }
+
+        applyFontSettings();
+    }
+        setStatus("保存設定を読み込みました。");
+    } catch (error) {
+        setStatus(
+            "読み込みできませんでした：" +
+            error.message,
+            true
+        );
+    }
+}
+
+// 初期値に戻す
+function resetLayout() {
+    writeLayout(DEFAULT_LAYOUT);
+    applyLayout(DEFAULT_LAYOUT);
+
+    setStatus("初期値に戻しました。");
+}
+
+// ボタンの登録
+document.getElementById("applyButton")
+    .addEventListener("click", applyFromInputs);
+
+document.getElementById("saveButton")
+    .addEventListener("click", saveLayout);
+
+document.getElementById("loadButton")
+    .addEventListener("click", loadLayout);
+
+document.getElementById("resetButton")
+    .addEventListener("click", resetLayout);
+
+// 起動時の処理
+writeLayout(DEFAULT_LAYOUT);
+applyLayout(DEFAULT_LAYOUT);
+
+// 印刷後の縮小表示復元
+window.addEventListener("afterprint", () => {
+    requestAnimationFrame(scalePaper);
+});
+
+window.addEventListener("load", scalePaper);
+window.addEventListener("resize", scalePaper);
+
+
+    // =====================================
+    // 第8回：JSON書き出し・読込み
+    // =====================================
+
+    // JSONファイルに書き出す
+    function exportLayoutJSON() {
+        try {
+            const layout = readLayout();
+
+            // 入力値を先に画面へ反映
+            applyLayout(layout);
+
+            const data = {
+                format: "TMJ_PWA_LAYOUT",
+                version: 1,
+                paper: "B4",
+                unit_position: "mm",
+                unit_font: "pt",
+                layout: layout,
+                font_settings: readFontSettings()
+            };
+
+            const json = JSON.stringify(data, null, 2);
+
+            const blob = new Blob(
+                [json],
+                {type: "application/json;charset=utf-8"}
+            );
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "TMJ_PWA_Layout_Ver1.json";
+
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            // ダウンロード開始後にURLを解放
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+            }, 10000);
+
+            setStatus("JSONファイルを書き出しました。");
+
+        } catch (error) {
+            setStatus(
+                "書き出し失敗：" + error.message,
+                true
+            );
+        }
+    }
+
+    // JSONファイルの内容を検証
+    function validateImportedLayout(data) {
+        if (
+            !data ||
+            data.format !== "TMJ_PWA_LAYOUT" ||
+            data.version !== 1 ||
+            data.paper !== "B4" ||
+            data.unit_position !== "mm" ||
+            data.unit_font !== "pt" ||
+            !data.layout
+        ) {
+            throw new Error(
+                "対応していない設定ファイルです。"
+            );
+        }
+
+        for (const target of TARGETS) {
+            const value = data.layout[target.key];
+
+            if (
+                !value ||
+                typeof value.top !== "number" ||
+                typeof value.right !== "number" ||
+                typeof value.size !== "number" ||
+                !Number.isFinite(value.top) ||
+                !Number.isFinite(value.right) ||
+                !Number.isFinite(value.size) ||
+                value.top < 0 || value.top > 364 ||
+                value.right < 0 || value.right > 257 ||
+                value.size < 1 || value.size > 180
+            ) {
+                throw new Error(
+                    target.key + " の設定値が不正です。"
+                );
+            }
+        }
+
+        return data.layout;
+    }
+
+    // JSONファイルを読み込む
+    async function importLayoutJSON(event) {
+        const file = event.target.files[0];
+
+        if (!file) return;
+
+        try {
+            if (file.size > 1024 * 1024) {
+                throw new Error(
+                    "ファイルが大きすぎます。"
+                );
+            }
+
+            const text = await file.text();
+            const data = JSON.parse(text);
+
+            const layout = validateImportedLayout(data);
+
+            // 検証後に初めて設定を変更
+            writeLayout(layout);
+            applyLayout(layout);
+
+            // JSONにフォント設定がある場合は復元する
+            if (data.font_settings) {
+                const settings = data.font_settings;
+
+                const fontName = settings.font;
+                const weight = String(settings.weight);
+
+                if (
+                    typeof fontName !== "string" ||
+                    fontName.length === 0 ||
+                    fontName.length > 200 ||
+                    !["400", "700", "800", "900"].includes(weight)
+                ) {
+                    throw new Error("フォント設定が不正です。");
+                }
+
+                const fontSelect =
+                    document.getElementById("commonFont");
+
+                const weightSelect =
+                    document.getElementById("commonWeight");
+
+                if (!Array.from(fontSelect.options)
+                    .some(option => option.value === fontName)) {
+                    fontSelect.add(new Option(fontName, fontName));
+                }
+
+                fontSelect.value = fontName;
+                weightSelect.value = weight;
+
+                applyFontSettings();
+            }
+
+            setStatus(
+                "JSONファイルの設定を読み込みました。"
+            );
+
+        } catch (error) {
+            setStatus(
+                "読込み失敗：" + error.message,
+                true
+            );
+        } finally {
+            event.target.value = "";
+        }
+    }
+
+    // ボタンに処理を登録
+    document.getElementById("exportButton")
+        .addEventListener("click", exportLayoutJSON);
+
+    document.getElementById("importButton")
+        .addEventListener("click", () => {
+            document.getElementById("jsonFileInput").click();
+        });
+
+    document.getElementById("jsonFileInput")
+        .addEventListener("change", importLayoutJSON);
+        
+const FONT_TARGETS = [
+    {key: "hounou", selector: ".hounou"},
+    {key: "amount", selector: ".vertical-amount"},
+    {key: "name", selector: ".vertical-name"}
+];
+
+function readFontSettings() {
+    return {
+        font: document.getElementById("commonFont").value,
+        weight: Number(document.getElementById("commonWeight").value)
+    };
+}
+
+function applyFontSettings() {
+    const font = document.getElementById("commonFont").value;
+    const weight = document.getElementById("commonWeight").value;
+
+    const fontFamily = font === "serif"
+        ? "serif"
+        : JSON.stringify(font) + ", serif";
+
+    const selectors = [
+        ".hounou",
+        ".vertical-amount",
+        ".vertical-name"
+    ];
+
+    for (const selector of selectors) {
+        const element = document.querySelector(selector);
+
+        element.style.fontFamily = fontFamily;
+        element.style.fontWeight = weight;
+    }
+}
+
+document.getElementById("getFontsButton")
+    .addEventListener("click", async () => {
+
+        const status = document.getElementById("fontStatus");
+
+        if (typeof window.queryLocalFonts !== "function") {
+            status.textContent =
+                "この端末ではフォント一覧を自動取得できません。";
+            return;
+        }
+
+        try {
+            const fonts = await window.queryLocalFonts();
+
+            const families = [...new Set(
+                fonts.map(f => f.family).filter(Boolean)
+            )].sort((a, b) => a.localeCompare(b, "ja"));
+
+            const select = document.getElementById("commonFont");
+
+            select.replaceChildren(
+                new Option("標準明朝系", "serif")
+            );
+
+            for (const family of families) {
+                select.add(new Option(family, family));
+            }
+
+            status.textContent =
+                families.length + "種類のフォントを取得しました。";
+
+        } catch (error) {
+            status.textContent =
+                "フォント取得失敗：" + error.name;
+        }
+    });
+
+document.getElementById("commonFont")
+    .addEventListener("change", applyFontSettings);
+
+document.getElementById("commonWeight")
+    .addEventListener("change", applyFontSettings);
+
+applyFontSettings();
+document.getElementById("applyManualFont")
+    .addEventListener("click", () => {
+
+        const input = document.getElementById("manualFont");
+        const fontName = input.value.trim();
+
+        if (!fontName) {
+            document.getElementById("fontStatus").textContent =
+                "フォント名を入力してください。";
+            return;
+        }
+
+        const select = document.getElementById("commonFont");
+
+        if (!Array.from(select.options)
+            .some(option => option.value === fontName)) {
+            select.add(new Option(fontName, fontName));
+        }
+
+        select.value = fontName;
+        applyFontSettings();
+
+        document.getElementById("fontStatus").textContent =
+            "指定したフォントを適用しました：" + fontName;
+    });
+</script>
+
+
+<script>
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker
+        .register("./service-worker.js")
+        .then(() => {
+            console.log(
+                "Service Worker登録成功"
+            );
+        })
+        .catch(error => {
+            console.error(
+                "Service Worker登録失敗",
+                error
+            );
+        });
+}
+</script>
+
+</body>
+</html>
