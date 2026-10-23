@@ -970,9 +970,9 @@ function applyFontSettings() {
     const font = document.getElementById("commonFont").value;
     const weight = document.getElementById("commonWeight").value;
 
-    const fontFamily = font === "serif"
-        ? "serif"
-        : JSON.stringify(font) + ", serif";
+    const fontFamily = ["serif", "sans-serif", "monospace"].includes(font)
+    ? font
+    : JSON.stringify(font) + ", serif";
 
     const selectors = [
         ".hounou",
