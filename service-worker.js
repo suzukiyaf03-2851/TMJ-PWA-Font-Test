@@ -5,7 +5,7 @@
 "use strict";
 
 // 第10回：アイコン対応キャッシュ
-const CACHE_NAME = "tmj-pwa-v002";
+const CACHE_NAME = "tmj-pwa-v003";
 
 const APP_FILES = [
     "./",
@@ -23,6 +23,8 @@ self.addEventListener("install", event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => {
             return cache.addAll(APP_FILES);
+        }).then(() => {
+            return self.skipWaiting();
         })
     );
 });
@@ -33,7 +35,7 @@ self.addEventListener("activate", event => {
         caches.keys().then(keys => {
             return Promise.all(
                 keys
-                    .filter(key => key !== CACHE_NAME)
+                    .filter(key => key.startsWith("tmj-pwa-") && key !== CACHE_NAME)
                     .map(key => caches.delete(key))
             );
         })
@@ -54,8 +56,25 @@ self.addEventListener("fetch", event => {
     }
 
     event.respondWith(
-        fetch(event.request).catch(() => {
-            return caches.match(event.request);
+        fetch(event.request).then(response => {
+            if (response.ok) {
+                const copy = response.clone();
+
+                event.waitUntil(
+                    caches.open(CACHE_NAME).then(cache => {
+                        return cache.put(event.request, copy);
+                    })
+                );
+            }
+
+            return response;
+        }).catch(async () => {
+            const cached = await caches.match(
+                event.request,
+                { ignoreSearch: true }
+            );
+
+            return cached || Response.error();
         })
     );
 });
