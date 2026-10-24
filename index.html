@@ -355,6 +355,15 @@ button.primary {
     </p>
 
     <label for="commonFont">使用フォント（共通）</label>
+    <label for="fontFileInput">フォントファイルを選択</label>
+<input
+    type="file"
+    id="fontFileInput"
+    accept=".ttf,.otf,.woff,.woff2,.ttc"
+>
+<p id="fontFileStatus">
+    フォントファイルは未選択です。
+</p>
     <label for="manualFont">フォント名を手動入力</label>
 <input
     type="text"
@@ -1056,6 +1065,68 @@ document.getElementById("applyManualFont")
 
         document.getElementById("fontStatus").textContent =
             "指定したフォントを適用しました：" + fontName;
+    });
+
+    // 第29回：フォントファイル読み込み
+let tmjLoadedFont = null;
+let tmjFontSequence = 0;
+
+document.getElementById("fontFileInput")
+    .addEventListener("change", async function () {
+
+        const file = this.files[0];
+        if (!file) return;
+
+        const status =
+            document.getElementById("fontFileStatus");
+
+        try {
+            const allowed = /\.(ttf|otf|woff|woff2|ttc)$/i;
+
+            if (!allowed.test(file.name)) {
+                throw new Error("対応していないファイル形式です。");
+            }
+
+            const data = await file.arrayBuffer();
+
+            const font = new FontFace(
+                "TMJImportedFont_" + (++tmjFontSequence),
+                data,
+                { weight: "100 900" }
+            );
+
+            await font.load();
+
+            document.fonts.add(font);
+
+            const select =
+                document.getElementById("commonFont");
+
+            const fontName = "TMJImportedFont_" + tmjFontSequence;
+
+            if (!Array.from(select.options)
+                .some(option => option.value === fontName)) {
+                select.add(
+                    new Option("読み込んだフォント：" + file.name, fontName)
+                );
+            }
+
+            select.value = fontName;
+            applyFontSettings();
+
+            if (tmjLoadedFont) {
+                document.fonts.delete(tmjLoadedFont);
+            }
+
+            tmjLoadedFont = font;
+
+            status.textContent =
+                "読み込み成功：" + file.name;
+
+        } catch (error) {
+            status.textContent =
+                "読み込み失敗：" + error.message;
+        }
     });
 </script>
 
