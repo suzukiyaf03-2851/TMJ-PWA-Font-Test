@@ -124,6 +124,35 @@ button {
     background: #dce8f5;
 }
 
+/* 第33回：ボタン押下時の視覚的フィードバック */
+button {
+    transition:
+        background-color 0.12s ease,
+        box-shadow 0.12s ease,
+        transform 0.12s ease;
+}
+
+button:active {
+    background-color: #8fb6dc;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.25);
+    transform: translateY(2px);
+}
+
+button.primary:active {
+    background-color: #82c78a;
+}
+
+button:focus-visible {
+    outline: 3px solid #3569b0;
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    button {
+        transition: none;
+    }
+}
+
 button.primary {
     background: #c8e6c9;
 }
@@ -473,6 +502,16 @@ button.primary {
             </button>
         </div>
 
+        <label for="jsonImportMode">JSON読み込み方法</label>
+        <select id="jsonImportMode">
+            <option value="all" selected>
+                レイアウト・フォントをすべて読み込む
+            </option>
+            <option value="fontOnly">
+                フォントのみ読み込む（位置・文字サイズを維持）
+            </option>
+        </select>
+        
         <!-- 第8回：JSONファイル操作 -->
         <div class="button-row">
 
@@ -699,7 +738,44 @@ function saveLayout() {
     }
 }
 
-// 設定を読込
+// 第33回：保存済みレイアウトを起動時に自動復元
+function restoreSavedLayout() {
+    try {
+        const text = localStorage.getItem(STORAGE_KEY);
+
+        if (text === null) {
+            return;
+        }
+
+        const layout = JSON.parse(text);
+
+        for (const target of TARGETS) {
+            const value = layout[target.key];
+
+            if (
+                !value ||
+                !Number.isFinite(value.top) ||
+                !Number.isFinite(value.right) ||
+                !Number.isFinite(value.size) ||
+                value.top < 0 || value.top > 364 ||
+                value.right < 0 || value.right > 257 ||
+                value.size < 1 || value.size > 180
+            ) {
+                throw new Error("保存済みレイアウトが不正です。");
+            }
+        }
+
+        writeLayout(layout);
+        applyLayout(layout);
+
+    } catch (error) {
+        setStatus(
+            "レイアウト自動復元失敗：" + error.message,
+            true
+        );
+    }
+}
+
 function loadLayout() {
     try {
         const text =
@@ -784,6 +860,8 @@ window.addEventListener("afterprint", () => {
 });
 
 window.addEventListener("load", scalePaper);
+window.addEventListener("load", restoreSavedLayout);
+window.addEventListener("load", restoreTMJFont);
 window.addEventListener("resize", scalePaper);
 
 
@@ -899,10 +977,39 @@ window.addEventListener("resize", scalePaper);
 
             const layout = validateImportedLayout(data);
 
-            // 検証後に初めて設定を変更
-            writeLayout(layout);
-            applyLayout(layout);
+            // 第33回：設定変更前にフォントの保存状態を検証
+if (data.font_settings) {
+    const settings = data.font_settings;
+    const fontName = settings.font;
+    const weight = String(settings.weight);
 
+    if (
+        typeof fontName !== "string" ||
+        fontName.length === 0 ||
+        fontName.length > 200 ||
+        !["400", "700", "800", "900"].includes(weight)
+    ) {
+        throw new Error("フォント設定が不正です。");
+    }
+
+    if (fontName.startsWith("font:")) {
+        const savedFont = await loadTMJFontFromLibrary(fontName);
+
+        if (!savedFont || !savedFont.data) {
+            throw new Error(
+                "指定されたフォントが端末内に保存されていません。"
+            );
+        }
+    }
+}
+            // JSON読み込み方法に応じてレイアウトを反映
+            const importMode =
+                document.getElementById("jsonImportMode").value;
+
+            if (importMode === "all") {
+                writeLayout(layout);
+                applyLayout(layout);
+            }
             // JSONにフォント設定がある場合は復元する
             if (data.font_settings) {
                 const settings = data.font_settings;
@@ -925,15 +1032,14 @@ window.addEventListener("resize", scalePaper);
                 const weightSelect =
                     document.getElementById("commonWeight");
 
-                if (!Array.from(fontSelect.options)
-                    .some(option => option.value === fontName)) {
-                    fontSelect.add(new Option(fontName, fontName));
-                }
-
                 fontSelect.value = fontName;
                 weightSelect.value = weight;
 
+            if (fontName.startsWith("font:")) {
+                await applyTMJFontFromLibrary(fontName);
+            } else {
                 applyFontSettings();
+            }
             }
 
             setStatus(
@@ -969,16 +1075,65 @@ const FONT_TARGETS = [
 ];
 
 function readFontSettings() {
+    const font =
+        document.getElementById("commonFont").value;
+
+    let savedFont = font;
+
+    if (font.startsWith("TMJImportedFont_")) {
+    const selectedOption =
+        document.getElementById("commonFont").selectedOptions[0];
+
+    const selectedText = selectedOption
+        ? selectedOption.textContent
+        : "";
+
+    const prefix = "保存済みフォント：";
+
+    if (selectedText.startsWith(prefix)) {
+        savedFont = "font:" + selectedText.slice(prefix.length);
+    } else if (selectedText.startsWith("読み込んだフォント：")) {
+        savedFont = "font:" +
+            selectedText.slice("読み込んだフォント：".length);
+    } else {
+        savedFont = tmjLoadedFontKey || "TMJ_SAVED_FONT";
+    }
+}
+
     return {
-        font: document.getElementById("commonFont").value,
-        weight: Number(document.getElementById("commonWeight").value)
+        font: savedFont,
+        weight: Number(
+            document.getElementById("commonWeight").value
+        )
     };
 }
 
 function applyFontSettings() {
-    const font = document.getElementById("commonFont").value;
-    const weight = document.getElementById("commonWeight").value;
+        const select = document.getElementById("commonFont");
 
+    if (select.value === "TMJ_SAVED_FONT") {
+        if (!tmjLoadedFont) {
+            document.getElementById("fontFileStatus").textContent =
+                "保存済みフォントを復元できません。";
+            return;
+        }
+
+        const actualFontName = tmjLoadedFont.family;
+
+        if (!Array.from(select.options).some(
+            option => option.value === actualFontName
+        )) {
+            select.add(new Option(
+                "保存済みフォント",
+                actualFontName
+            ));
+        }
+
+        select.value = actualFontName;
+    }
+
+    const font = select.value;
+    const weight = document.getElementById("commonWeight").value;
     const fontFamily = ["serif", "sans-serif", "monospace"].includes(font)
     ? font
     : JSON.stringify(font) + ", serif";
@@ -1067,8 +1222,293 @@ document.getElementById("applyManualFont")
             "指定したフォントを適用しました：" + fontName;
     });
 
-    // 第29回：フォントファイル読み込み
+// 第33回：フォント保存用IndexedDB
+const TMJ_FONT_DB_NAME = "TMJ_PWA_FontDB";
+const TMJ_FONT_STORE_NAME = "fonts";
+
+function openTMJFontDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(TMJ_FONT_DB_NAME, 1);
+
+        request.onupgradeneeded = () => {
+            const db = request.result;
+
+            if (!db.objectStoreNames.contains(TMJ_FONT_STORE_NAME)) {
+                db.createObjectStore(TMJ_FONT_STORE_NAME);
+            }
+        };
+
+        request.onsuccess = () => {
+            resolve(request.result);
+        };
+
+        request.onerror = () => {
+            reject(request.error);
+        };
+    });
+}
+
+// 第33回：フォントファイルをIndexedDBに保存
+async function saveTMJFontFile(file) {
+    const db = await openTMJFontDB();
+
+    try {
+        return await new Promise((resolve, reject) => {
+            const transaction =
+                db.transaction(TMJ_FONT_STORE_NAME, "readwrite");
+
+            const store =
+                transaction.objectStore(TMJ_FONT_STORE_NAME);
+
+            store.put({
+                name: file.name,
+                data: file
+            }, "selectedFont");
+
+            transaction.oncomplete = () => resolve();
+
+            transaction.onerror = () =>
+                reject(transaction.error);
+
+            transaction.onabort = () =>
+                reject(transaction.error);
+        });
+    } finally {
+        db.close();
+    }
+}
+
+// 第33回：IndexedDBから保存済みフォントを読み出す
+async function loadTMJFontFile() {
+    const db = await openTMJFontDB();
+
+    try {
+        return await new Promise((resolve, reject) => {
+            const transaction =
+                db.transaction(TMJ_FONT_STORE_NAME, "readonly");
+
+            const store =
+                transaction.objectStore(TMJ_FONT_STORE_NAME);
+
+            const request = store.get("selectedFont");
+
+            request.onsuccess = () => {
+                resolve(request.result || null);
+            };
+
+            request.onerror = () => {
+                reject(request.error);
+            };
+
+            transaction.onabort = () => {
+                reject(transaction.error);
+            };
+        });
+    } finally {
+        db.close();
+    }
+}
+
+// 第33回：保存済みフォントの自動復元
+async function restoreTMJFont() {
+    const status = document.getElementById("fontFileStatus");
+
+    try {
+        const saved = await loadTMJFontFile();
+
+        if (!saved || !saved.data) {
+            return;
+        }
+
+        const data = await saved.data.arrayBuffer();
+
+        const font = new FontFace(
+            "TMJImportedFont_" + (++tmjFontSequence),
+            data,
+            { weight: "100 900" }
+        );
+
+        await font.load();
+        document.fonts.add(font);
+
+        const fontName = font.family;
+        const select = document.getElementById("commonFont");
+
+        select.add(
+            new Option(
+                "保存済みフォント：" + saved.name,
+                fontName
+            )
+        );
+
+        select.value = fontName;
+        applyFontSettings();
+
+        tmjLoadedFont = font;
+        tmjLoadedFontKey = "font:" + saved.name;
+        tmjFontRegistry.set(tmjLoadedFontKey, font);
+
+        status.textContent =
+            "保存済みフォントを復元しました：" + saved.name;
+
+    } catch (error) {
+        status.textContent =
+            "フォントの自動復元に失敗：" + error.message;
+    }
+}
+
+// 第33回：複数フォントを個別保存する
+async function saveTMJFontToLibrary(file) {
+    const db = await openTMJFontDB();
+    const key = "font:" + file.name;
+
+    try {
+        await new Promise((resolve, reject) => {
+            const transaction =
+                db.transaction(TMJ_FONT_STORE_NAME, "readwrite");
+
+            const store =
+                transaction.objectStore(TMJ_FONT_STORE_NAME);
+
+            store.put({
+                name: file.name,
+                data: file
+            }, key);
+
+            transaction.oncomplete = () => resolve();
+
+            transaction.onerror = () =>
+                reject(transaction.error);
+
+            transaction.onabort = () =>
+                reject(transaction.error);
+        });
+
+        return key;
+
+    } finally {
+        db.close();
+    }
+}
+
+// 第33回：複数フォントから指定したファイルを読み出す
+async function loadTMJFontFromLibrary(fontKey) {
+    if (typeof fontKey !== "string" ||
+        !fontKey.startsWith("font:") ||
+        fontKey.length <= 5) {
+        throw new Error("フォントの識別子が不正です。");
+    }
+
+    const db = await openTMJFontDB();
+
+    try {
+        return await new Promise((resolve, reject) => {
+            const transaction =
+                db.transaction(TMJ_FONT_STORE_NAME, "readonly");
+
+            const store =
+                transaction.objectStore(TMJ_FONT_STORE_NAME);
+
+            const request = store.get(fontKey);
+
+            request.onsuccess = () => {
+                resolve(request.result || null);
+            };
+
+            request.onerror = () => {
+                reject(request.error);
+            };
+
+            transaction.onabort = () => {
+                reject(transaction.error);
+            };
+        });
+    } finally {
+        db.close();
+    }
+}
+
+// 第33回：指定した保存済みフォントを復元する
+async function applyTMJFontFromLibrary(fontKey) {
+
+        // 第42段階：登録済みフォントを再利用する
+        if (tmjFontRegistry.has(fontKey)) {
+            const font = tmjFontRegistry.get(fontKey);
+            const select = document.getElementById("commonFont");
+
+            const existingOption = Array.from(select.options).find(
+                option => option.value === font.family
+            );
+
+            if (!existingOption) {
+                select.add(new Option(
+                    "保存済みフォント：" + fontKey.slice(5),
+                    font.family
+                ));
+            }
+
+        select.value = font.family;
+
+        tmjLoadedFont = font;
+        tmjLoadedFontKey = fontKey;
+
+        applyFontSettings();
+
+        document.getElementById("fontFileStatus").textContent =
+            "登録済みフォントを再利用しました：" + fontKey.slice(5);
+
+        return;
+    }
+    
+    const saved = await loadTMJFontFromLibrary(fontKey);
+
+    if (!saved || !saved.data) {
+        throw new Error(
+            "指定されたフォントが端末内に保存されていません。"
+        );
+    }
+
+    const data = await saved.data.arrayBuffer();
+
+    const font = new FontFace(
+        "TMJImportedFont_" + (++tmjFontSequence),
+        data,
+        { weight: "100 900" }
+    );
+
+    await font.load();
+    document.fonts.add(font);
+
+    const select = document.getElementById("commonFont");
+    const fontName = font.family;
+
+    if (!Array.from(select.options).some(
+    option => option.value === fontName
+)) {
+    select.add(
+        new Option(
+            "保存済みフォント：" + saved.name,
+            fontName
+        )
+    );
+}
+
+    select.value = fontName;
+    applyFontSettings();
+
+    tmjLoadedFont = font;
+    tmjLoadedFontKey = fontKey;
+    tmjFontRegistry.set(fontKey, font);
+
+    document.getElementById("fontFileStatus").textContent =
+        "指定フォントを復元しました：" + saved.name;
+}
+
+// 第29回：フォントファイル読み込み
+
 let tmjLoadedFont = null;
+let tmjLoadedFontKey = null;
+const tmjFontRegistry = new Map();
 let tmjFontSequence = 0;
 
 document.getElementById("fontFileInput")
@@ -1114,14 +1554,25 @@ document.getElementById("fontFileInput")
             select.value = fontName;
             applyFontSettings();
 
-            if (tmjLoadedFont) {
-                document.fonts.delete(tmjLoadedFont);
-            }
-
             tmjLoadedFont = font;
 
             status.textContent =
-                "読み込み成功：" + file.name;
+                "読み込み成功・保存中：" + file.name;
+
+            try {
+                await saveTMJFontFile(file);
+
+                const savedFontKey = await saveTMJFontToLibrary(file);
+                tmjLoadedFontKey = savedFontKey;
+                tmjFontRegistry.set(savedFontKey, font);
+
+                status.textContent =
+                    "読み込み・複数フォント保存成功：" + file.name;
+            } catch (saveError) {
+                status.textContent =
+                    "読み込み成功・保存失敗：" +
+                    saveError.message;
+            }
 
         } catch (error) {
             status.textContent =
