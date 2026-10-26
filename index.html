@@ -364,6 +364,10 @@ button.primary {
     <input type="number" id="amount"
            min="1" step="1"
            placeholder="例：10000">
+    <button type="button" id="clearInputButton"
+            style="width:100%; margin-top:12px;">
+        氏名・金額を消去
+    </button>
 
     <div class="preview">
         <div id="kanjiResult"></div>
@@ -584,6 +588,7 @@ const DEFAULT_LAYOUT = {
 };
 
 const STORAGE_KEY = "tmj_pwa_layout_v1";
+const INPUT_STORAGE_KEY = "tmj_pwa_input_v1";
 
 const TARGETS = [
     {key: "hounou", selector: ".hounou"},
@@ -729,6 +734,17 @@ function saveLayout() {
             JSON.stringify(fontSettings)
         ); 
 
+        // 氏名・奉納金額を保存
+        const inputData = {
+            name: document.getElementById("name").value,
+            amount: document.getElementById("amount").value
+        };
+
+        localStorage.setItem(
+            INPUT_STORAGE_KEY,
+            JSON.stringify(inputData)
+        );
+
         setStatus("設定を保存しました。");
     } catch (error) {
         setStatus(
@@ -738,6 +754,82 @@ function saveLayout() {
     }
 }
 
+// 第52段階：氏名・奉納金額の消去
+function clearSavedInputs() {
+
+    const confirmed = window.confirm(
+        "氏名・奉納金額を消去しますか？\n" +
+        "ブラウザーに保存された入力内容も削除します。"
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    // 保存した氏名・金額を削除
+    localStorage.removeItem(INPUT_STORAGE_KEY);
+
+    // 入力欄を空白にする
+    const nameInput = document.getElementById("name");
+    const amountInput = document.getElementById("amount");
+
+    nameInput.value = "";
+    amountInput.value = "";
+
+    // 既存のプレビュー更新処理を実行
+    nameInput.dispatchEvent(
+        new Event("input", { bubbles: true })
+    );
+
+    amountInput.dispatchEvent(
+        new Event("input", { bubbles: true })
+    );
+
+    setStatus("氏名・奉納金額を消去しました。");
+}
+
+// 消去ボタンに処理を登録
+document.getElementById("clearInputButton")
+    .addEventListener("click", clearSavedInputs);
+
+// 第51段階：氏名・奉納金額の自動復元
+function restoreSavedInputs() {
+    try {
+        const text = localStorage.getItem(INPUT_STORAGE_KEY);
+
+        if (text === null) {
+            return;
+        }
+
+        const data = JSON.parse(text);
+
+        if (
+            !data ||
+            typeof data.name !== "string" ||
+            typeof data.amount !== "string"
+        ) {
+            throw new Error("保存済み入力データが不正です。");
+        }
+
+        document.getElementById("name").value = data.name;
+        document.getElementById("amount").value = data.amount;
+
+        // 入力内容の変更を既存のプレビュー処理に通知
+        document.getElementById("name").dispatchEvent(
+            new Event("input", { bubbles: true })
+        );
+
+        document.getElementById("amount").dispatchEvent(
+            new Event("input", { bubbles: true })
+        );
+
+    } catch (error) {
+        setStatus(
+            "氏名・金額の自動復元失敗：" + error.message,
+            true
+        );
+    }
+}
 // 第33回：保存済みレイアウトを起動時に自動復元
 function restoreSavedLayout() {
     try {
@@ -861,6 +953,7 @@ window.addEventListener("afterprint", () => {
 
 window.addEventListener("load", scalePaper);
 window.addEventListener("load", restoreSavedLayout);
+window.addEventListener("load", restoreSavedInputs);
 window.addEventListener("load", restoreTMJFont);
 window.addEventListener("resize", scalePaper);
 
