@@ -1302,6 +1302,25 @@ document.getElementById("applyManualFont")
         }
 
         const select = document.getElementById("commonFont");
+        // 第70段階：保存済みファイル名との重複を防止
+        const fontKey = "font:" + fontName;
+        const registeredFont = tmjFontRegistry.get(fontKey);
+
+        if (registeredFont) {
+            const existingOption = Array.from(select.options).find(
+                option => option.value === registeredFont.family
+            );
+
+            if (existingOption) {
+                select.value = registeredFont.family;
+                applyFontSettings();
+
+                document.getElementById("fontStatus").textContent =
+                    "登録済みフォントを選択しました：" + fontName;
+
+                return;
+            }
+        }
 
         if (!Array.from(select.options)
             .some(option => option.value === fontName)) {
@@ -1541,6 +1560,20 @@ async function applyTMJFontFromLibrary(fontKey) {
             }
 
         select.value = font.family;
+        // 第67段階：同じファイルの重複選択肢を整理する
+        const fileName = fontKey.slice(5);
+        const unifiedLabel = "保存済みフォント：" + fileName;
+
+        for (const option of Array.from(select.options)) {
+            if (option.value === font.family) {
+                option.textContent = unifiedLabel;
+            } else if (
+                option.textContent === unifiedLabel ||
+                option.textContent === "読み込んだフォント：" + fileName
+            ) {
+                option.remove();
+            }
+        }
 
         tmjLoadedFont = font;
         tmjLoadedFontKey = fontKey;
@@ -1655,12 +1688,46 @@ document.getElementById("fontFileInput")
             try {
                 await saveTMJFontFile(file);
 
-                const savedFontKey = await saveTMJFontToLibrary(file);
-                tmjLoadedFontKey = savedFontKey;
-                tmjFontRegistry.set(savedFontKey, font);
+        const savedFontKey = await saveTMJFontToLibrary(file);
+        tmjLoadedFontKey = savedFontKey;
+        tmjFontRegistry.set(savedFontKey, font);
 
-                status.textContent =
-                    "読み込み・複数フォント保存成功：" + file.name;
+        // 同一ファイル名の選択肢を1つに統一
+        const unifiedLabel = "保存済みフォント：" + file.name;
+
+        for (const option of Array.from(select.options)) {
+            if (option.value === font.family) {
+                option.textContent = unifiedLabel;
+            } else if (
+                option.textContent === unifiedLabel ||
+                option.textContent === "読み込んだフォント：" + file.name
+            ) {
+                option.remove();
+            }
+        }
+
+    // 第68段階：現在の選択肢の表示名を統一
+    const currentOption = Array.from(select.options).find(
+        option => option.value === font.family
+    );
+
+    if (currentOption) {
+        currentOption.textContent =
+            "保存済みフォント：" + file.name;
+    }
+    
+    // 第70段階：ファイル名だけの古い選択肢を削除
+    for (const option of Array.from(select.options)) {
+        if (option.value === file.name) {
+            option.remove();
+        }
+    }
+
+    select.value = font.family;
+    applyFontSettings();
+
+    status.textContent =
+    "読み込み・複数フォント保存成功：" + file.name;
             } catch (saveError) {
                 status.textContent =
                     "読み込み成功・保存失敗：" +
