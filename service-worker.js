@@ -5,7 +5,7 @@
 "use strict";
 
 // 第10回：アイコン対応キャッシュ
-const CACHE_NAME = "tmj-pwa-v005";
+const CACHE_NAME = "tmj-pwa-v006";
 
 const APP_FILES = [
     "./",
