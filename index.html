@@ -254,12 +254,6 @@ button.primary {
     margin: 0;
 }
 
-/* 第78段階：下げ札の印刷用紙サイズ */
-@page {
-    size: 257mm 364mm;
-    margin: 0;
-}
-
 @media print {
     html, body {
         margin: 0 !important;
@@ -579,9 +573,19 @@ button.primary {
         PDF保存・印刷
     </button>
 
+    <button type="button"
+            class="primary print-button"
+            id="directPdfButton"
+            onclick="createB4DirectPDF()">
+        B4 PDF直接保存（試験）
+    </button>
+
 </div>
 
 <script src="app.js"></script>
+<script src="pdf_lib/html2canvas.min.js"></script>
+<script src="pdf_lib/jspdf.umd.min.js"></script>
+<script src="pdf_export.js"></script>
 
 <script>
 "use strict";

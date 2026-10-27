@@ -5,12 +5,15 @@
 "use strict";
 
 // 第10回：アイコン対応キャッシュ
-const CACHE_NAME = "tmj-pwa-v006";
+const CACHE_NAME = "tmj-pwa-v007";
 
 const APP_FILES = [
     "./",
     "./index.html",
     "./app.js",
+    "./pdf_export.js",
+    "./pdf_lib/html2canvas.min.js",
+    "./pdf_lib/jspdf.umd.min.js",
     "./manifest.json",
     "./icons/icon-180.png",
     "./icons/icon-192.png",
