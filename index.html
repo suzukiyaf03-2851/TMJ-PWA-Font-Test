@@ -412,13 +412,16 @@ button.primary {
         <option value="serif">標準明朝系</option>
     </select>
 
-    <label for="commonWeight">文字の太さ（共通）</label>
-    <select id="commonWeight">
-        <option value="400">標準（400）</option>
-        <option value="700" selected>太字（700）</option>
-        <option value="800">特太字（800）</option>
-        <option value="900">極太字（900）</option>
-    </select>
+    <!-- 第98段階：太さ選択欄を非表示（互換性維持） -->
+    <div style="display: none;">
+        <label for="commonWeight">文字の太さ（共通）</label>
+        <select id="commonWeight">
+            <option value="400">標準（400）</option>
+            <option value="700" selected>太字（700）</option>
+            <option value="800">特太字（800）</option>
+            <option value="900">極太字（900）</option>
+        </select>
+    </div>
 </div>
         <h2>下げ札レイアウト調整</h2>
 

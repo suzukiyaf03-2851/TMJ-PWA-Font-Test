@@ -5,7 +5,7 @@
 "use strict";
 
 // 第10回：アイコン対応キャッシュ
-const CACHE_NAME = "tmj-pwa-v007";
+const CACHE_NAME = "tmj-pwa-v008";
 
 const APP_FILES = [
     "./",
@@ -45,7 +45,9 @@ self.addEventListener("activate", event => {
     );
 });
 
-// 通常は通信、オフライン時はキャッシュを利用
+// 第99段階：アプリ本体はキャッシュ優先
+// Wi-Fi接続中でも保存済みファイルを利用する
+
 self.addEventListener("fetch", event => {
     if (event.request.method !== "GET") {
         return;
@@ -53,31 +55,35 @@ self.addEventListener("fetch", event => {
 
     const url = new URL(event.request.url);
 
-    // このアプリと同じ配信元だけを対象にする
-    if (url.origin !== self.location.origin) {
+    // このPWAの配信元・配信フォルダー内だけを対象とする
+    const appBase = new URL(self.registration.scope);
+
+    if (url.origin !== appBase.origin ||
+        !url.pathname.startsWith(appBase.pathname)) {
         return;
     }
 
     event.respondWith(
-        fetch(event.request).then(response => {
-            if (response.ok) {
-                const copy = response.clone();
-
-                event.waitUntil(
-                    caches.open(CACHE_NAME).then(cache => {
-                        return cache.put(event.request, copy);
-                    })
-                );
+        caches.match(event.request, {
+            ignoreSearch: true
+        }).then(cached => {
+            if (cached) {
+                return cached;
             }
 
-            return response;
-        }).catch(async () => {
-            const cached = await caches.match(
-                event.request,
-                { ignoreSearch: true }
-            );
+            return fetch(event.request).then(response => {
+                if (response.ok) {
+                    const copy = response.clone();
 
-            return cached || Response.error();
+                    event.waitUntil(
+                        caches.open(CACHE_NAME).then(cache =>
+                            cache.put(event.request, copy)
+                        )
+                    );
+                }
+
+                return response;
+            });
         })
     );
 });
