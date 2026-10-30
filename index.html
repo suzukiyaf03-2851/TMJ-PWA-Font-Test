@@ -583,6 +583,20 @@ button.primary {
         B4 PDF直接保存（試験）
     </button>
 
+    <!-- 第104段階：アプリ更新確認（機能接続前） -->
+    <button type="button"
+            id="checkAppUpdateButton">
+        アプリの更新確認
+    </button>
+
+    <!-- 第106段階：新版適用ボタン -->
+    <button type="button"
+            id="applyAppUpdateButton"
+            disabled
+            style="display: none;">
+        新しいバージョンを適用
+    </button>
+
 </div>
 
 <script src="app.js"></script>
@@ -1771,6 +1785,155 @@ if ("serviceWorker" in navigator) {
             );
         });
 }
+</script>
+
+<!-- 第104段階：手動更新確認機能 -->
+<script>
+"use strict";
+
+// 第106段階：待機中の新版を検出
+function showWaitingAppUpdate(registration) {
+    const applyButton =
+        document.getElementById("applyAppUpdateButton");
+
+    if (!applyButton) return;
+
+    if (registration?.waiting) {
+        applyButton.style.display = "";
+        applyButton.disabled = false;
+    } else {
+        applyButton.style.display = "none";
+        applyButton.disabled = true;
+    }
+}
+
+document.getElementById("checkAppUpdateButton")
+    ?.addEventListener("click", async function () {
+
+        const button = this;
+        const originalText = button.textContent;
+
+        button.disabled = true;
+        button.textContent = "更新を確認中...";
+
+        try {
+            if (!("serviceWorker" in navigator)) {
+                throw new Error(
+                    "このブラウザーはService Workerに対応していません。"
+                );
+            }
+
+            const registration =
+                await navigator.serviceWorker.getRegistration();
+
+            if (!registration) {
+                throw new Error(
+                    "Service Workerが登録されていません。"
+                );
+            }
+
+            let updateFound = false;
+
+            const onUpdateFound = () => {
+            updateFound = true;
+
+            const installingWorker = registration.installing;
+            if (!installingWorker) return;
+
+            installingWorker.addEventListener("statechange", () => {
+                if (installingWorker.state === "installed") {
+                    showWaitingAppUpdate(registration);
+                }
+            });
+        };
+
+            registration.addEventListener(
+                "updatefound",
+                onUpdateFound
+            );
+
+            try {
+                await registration.update();
+            } finally {
+                registration.removeEventListener(
+                    "updatefound",
+                    onUpdateFound
+                );
+            }
+
+            // 待機中の新版がある場合だけ適用ボタンを表示
+            showWaitingAppUpdate(registration);
+
+            if (updateFound || registration.installing ||
+                registration.waiting) {
+                alert(
+                    "新しいService Workerが検出されました。\n" +
+                    "更新の適用状況は別途確認します。"
+                );
+            } else {
+                alert(
+                    "更新確認が完了しました。\n" +
+                    "新しいService Workerは検出されませんでした。"
+                );
+            }
+
+        } catch (error) {
+            console.error("更新確認エラー:", error);
+
+            alert(
+                "更新確認に失敗しました。\n" +
+                (error.message || String(error))
+            );
+
+        } finally {
+            button.disabled = false;
+            button.textContent = originalText;
+        }
+    });
+
+    // 第106段階：利用者の操作による新版適用
+    document.getElementById("applyAppUpdateButton")
+        ?.addEventListener("click", async function () {
+
+        const button = this;
+
+        if (!("serviceWorker" in navigator)) {
+            alert("このブラウザーでは更新できません。");
+            return;
+        }
+
+        const registration =
+            await navigator.serviceWorker.getRegistration();
+
+        if (!registration?.waiting) {
+            showWaitingAppUpdate(registration);
+            alert("適用できる新しいバージョンはありません。");
+            return;
+        }
+
+        if (!confirm(
+            "新しいバージョンを適用します。\n" +
+            "画面を再読み込みしてもよろしいですか？\n\n" +
+            "未保存の入力内容がある場合は、キャンセルしてください。"
+        )) {
+            return;
+        }
+
+        button.disabled = true;
+
+        navigator.serviceWorker.addEventListener(
+            "controllerchange",
+            () => {
+                location.reload();
+            },
+            { once: true }
+        );
+
+        registration.waiting.postMessage({
+            type: "SKIP_WAITING"
+        });
+    });
+
 </script>
 
 </body>

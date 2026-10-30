@@ -5,7 +5,17 @@
 "use strict";
 
 // 第10回：アイコン対応キャッシュ
-const CACHE_NAME = "tmj-pwa-v008";
+const CACHE_NAME = "tmj-pwa-v012";
+
+// 第108段階：Service Workerの実動作バージョン確認
+self.addEventListener("message", event => {
+    if (event.data?.type === "GET_SW_VERSION") {
+        event.source?.postMessage({
+            type: "SW_VERSION",
+            version: CACHE_NAME
+        });
+    }
+});
 
 const APP_FILES = [
     "./",
@@ -27,18 +37,39 @@ self.addEventListener("install", event => {
         caches.open(CACHE_NAME).then(cache => {
             return cache.addAll(APP_FILES);
         }).then(() => {
-            return self.skipWaiting();
+            return Promise.resolve();
         })
     );
 });
 
+// 第106段階：利用者の操作による更新適用
+self.addEventListener("message", event => {
+    if (event.data?.type === "SKIP_WAITING") {
+        event.waitUntil(self.skipWaiting());
+    }
+});
+
 // 古いキャッシュを削除
+// 第107段階：現行版と直前の旧版のキャッシュを保持
 self.addEventListener("activate", event => {
     event.waitUntil(
         caches.keys().then(keys => {
+            const appCaches = keys
+                .filter(key => /^tmj-pwa-v\d+$/.test(key))
+                .sort((a, b) => {
+                    const versionA = Number(a.match(/\d+$/)[0]);
+                    const versionB = Number(b.match(/\d+$/)[0]);
+                    return versionB - versionA;
+                });
+
+            const keepCaches = new Set([
+                CACHE_NAME,
+                ...appCaches.filter(key => key !== CACHE_NAME).slice(0, 1)
+            ]);
+
             return Promise.all(
-                keys
-                    .filter(key => key.startsWith("tmj-pwa-") && key !== CACHE_NAME)
+                appCaches
+                    .filter(key => !keepCaches.has(key))
                     .map(key => caches.delete(key))
             );
         })
@@ -55,6 +86,13 @@ self.addEventListener("fetch", event => {
 
     const url = new URL(event.request.url);
 
+    // 第105段階：ローカル開発時はキャッシュを使用しない
+    if (url.hostname === "127.0.0.1" ||
+        url.hostname === "localhost") {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
     // このPWAの配信元・配信フォルダー内だけを対象とする
     const appBase = new URL(self.registration.scope);
 
@@ -64,9 +102,11 @@ self.addEventListener("fetch", event => {
     }
 
     event.respondWith(
-        caches.match(event.request, {
-            ignoreSearch: true
-        }).then(cached => {
+        caches.open(CACHE_NAME).then(cache =>
+            cache.match(event.request, {
+                ignoreSearch: true
+            })
+        ).then(cached => {
             if (cached) {
                 return cached;
             }
