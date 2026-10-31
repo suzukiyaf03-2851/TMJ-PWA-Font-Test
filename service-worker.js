@@ -5,7 +5,7 @@
 "use strict";
 
 // 第10回：アイコン対応キャッシュ
-const CACHE_NAME = "tmj-pwa-v012";
+const CACHE_NAME = "tmj-pwa-v013";
 
 // 第108段階：Service Workerの実動作バージョン確認
 self.addEventListener("message", event => {

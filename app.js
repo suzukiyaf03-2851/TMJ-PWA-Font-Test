@@ -100,12 +100,37 @@ function updatePreview() {
         : "";
 }
 
+/* 第109段階：氏名・奉納金額の自動保存 */
+function autoSaveInputs() {
+    try {
+        const inputData = {
+            name: document.getElementById("name").value,
+            amount: document.getElementById("amount").value
+        };
+
+        localStorage.setItem(
+            "tmj_pwa_input_v1",
+            JSON.stringify(inputData)
+        );
+    } catch (error) {
+        console.error("氏名・金額の自動保存失敗:", error);
+    }
+}
+
 // 入力欄の変更を検知
+
 document.getElementById("name")
     .addEventListener("input", updatePreview);
 
 document.getElementById("amount")
     .addEventListener("input", updatePreview);
+
+// 入力時に氏名・金額を自動保存
+document.getElementById("name")
+    .addEventListener("input", autoSaveInputs);
+
+document.getElementById("amount")
+    .addEventListener("input", autoSaveInputs);
 
 // 起動時にも表示
 updatePreview();

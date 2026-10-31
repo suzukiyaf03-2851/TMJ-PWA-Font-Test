@@ -343,6 +343,43 @@ button.primary {
     font-size: 15px;
 }
 
+/* 奉納金額入力欄の▲▼ボタンを非表示 */
+#amount::-webkit-inner-spin-button,
+#amount::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+#amount {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* JSON読み込み方法の選択欄の文字サイズを統一 */
+#jsonImportMode {
+    font-size: 18px;
+}
+
+/* フォント復元メッセージの文字サイズ */
+#fontFileStatus {
+    font-size: 18px;
+}
+
+/* レイアウト調整の説明文 */
+#layoutHelpText {
+    font-size: 18px;
+}
+
+/* フォント選択の説明文 */
+#fontStatus {
+    font-size: 18px;
+}
+
+/* JSON読み込み方法の見出し */
+label[for="jsonImportMode"] {
+    font-size: 18px;
+}
+
 </style>
 </head>
 
@@ -425,7 +462,7 @@ button.primary {
 </div>
         <h2>下げ札レイアウト調整</h2>
 
-        <p>
+        <p id="layoutHelpText">
             位置はmm、文字サイズはptです。
         </p>
 
@@ -580,7 +617,7 @@ button.primary {
             class="primary print-button"
             id="directPdfButton"
             onclick="createB4DirectPDF()">
-        B4 PDF直接保存（試験）
+        B4 PDF保存
     </button>
 
     <!-- 第104段階：アプリ更新確認（機能接続前） -->
@@ -895,7 +932,7 @@ function restoreSavedLayout() {
     }
 }
 
-function loadLayout() {
+async function loadLayout() {
     try {
         const text =
             localStorage.getItem(STORAGE_KEY);
@@ -920,15 +957,30 @@ function loadLayout() {
         const fontSelect = document.getElementById("commonFont");
         const weightSelect = document.getElementById("commonWeight");
 
+
         const fontName = fontSettings.font;
         const fontWeight = String(fontSettings.weight);
 
-        if (fontName && !Array.from(fontSelect.options)
-            .some(option => option.value === fontName)) {
-            fontSelect.add(new Option(fontName, fontName));
-        }
+        
+let actualFontName = fontName || "serif";
 
-        fontSelect.value = fontName || "serif";
+if (fontName && fontName.startsWith("font:")) {
+    // 保存済みファイルから実際のフォントを復元
+    await applyTMJFontFromLibrary(fontName);
+    actualFontName = fontSelect.value;
+} else {
+    // 通常のフォント設定を維持
+    if (!Array.from(fontSelect.options).some(
+        option => option.value === actualFontName
+    )) {
+        fontSelect.add(
+            new Option(actualFontName, actualFontName)
+        );
+    }
+}
+
+fontSelect.value = actualFontName;
+
 
         if (["400", "700", "800", "900"].includes(fontWeight)) {
             weightSelect.value = fontWeight;
@@ -1160,6 +1212,24 @@ if (data.font_settings) {
             } else {
                 applyFontSettings();
             }
+            }
+
+            // JSON読込み成功後に設定を自動保存
+            // 氏名・金額の保存データは変更しない
+            if (importMode === "all") {
+                localStorage.setItem(
+                    STORAGE_KEY,
+                    JSON.stringify(layout)
+                );
+            }
+
+            if (data.font_settings) {
+                const savedFontSettings = readFontSettings();
+
+                localStorage.setItem(
+                    "tmj_pwa_font_v1",
+                    JSON.stringify(savedFontSettings)
+                );
             }
 
             setStatus(
